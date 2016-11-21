@@ -58,8 +58,8 @@
     </dependency>
 
     <dependency>
-      <groupId>com.couchbase</groupId>
-      <artifactId>couchbase-xcc</artifactId>
+      <groupId>com.couchbase.client</groupId>
+      <artifactId>java-client</artifactId>
     </dependency>
 
     <!-- temporary, for BinaryManager -->

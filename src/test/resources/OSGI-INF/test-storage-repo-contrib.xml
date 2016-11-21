@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<component name="org.nuxeo.ecm.core.storage.couchbase.test.repository">
+  <extension target="org.nuxeo.ecm.core.storage.couchbase.CouchbaseRepositoryService" point="repository">
+    <repository name="test" label="Couchbase Repository">
+      <server>${nuxeo.test.couchbase.server}</server>
+      <bucketname>${nuxeo.test.couchbase.bucketname}</bucketname>
+      <fulltext disabled="${nuxeo.test.fulltext.disabled}" searchDisabled="${nuxeo.test.fulltext.search.disabled}">
+        <index> <!-- name="default" implied -->
+          <!-- all props implied -->
+        </index>
+        <index name="title">
+          <field>dc:title</field>
+        </index>
+      </fulltext>
+    </repository>
+  </extension>
+</component>
