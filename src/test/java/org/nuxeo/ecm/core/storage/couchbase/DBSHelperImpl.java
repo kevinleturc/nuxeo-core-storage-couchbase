@@ -49,12 +49,8 @@ public class DBSHelperImpl implements DBSHelper {
         try {
             Cluster cluster = CouchbaseRepository.newCluster(descriptor);
             Bucket bucket = cluster.openBucket(bucketname);
-            bucket.async()
-                  .query(N1qlQuery.simple(Delete.deleteFromCurrentBucket()))
-                  .last()
-                  .toBlocking()
-                  .single();
-            // cluster.openBucket(bucketname).bucketManager().flush();
+            bucket.query(N1qlQuery.simple(Delete.deleteFromCurrentBucket()));
+//             cluster.openBucket(bucketname).bucketManager().flush();
             cluster.disconnect();
         } catch (UnknownHostException e) {
             throw new NuxeoException("Couchbase cleaning failed", e);

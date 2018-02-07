@@ -1,0 +1,1 @@
+SELECT `bucket`.* FROM `bucket` WHERE `ecm:primaryType` IN ( "Document", "Folder" )

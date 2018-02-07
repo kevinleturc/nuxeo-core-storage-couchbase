@@ -65,7 +65,7 @@ class CouchbaseUpdateQueryBuilder {
         } else if (value instanceof StateDiff) {
             ((StateDiff) value).entrySet().forEach(entry -> set(key + '.' + entry.getKey(), entry.getValue()));
         } else if (value instanceof ListDiff) {
-
+            throw new UnsupportedOperationException("ListDiff are not supported.");
         } else if (value instanceof Object[]) {
             JsonArray array = CouchbaseStateSerializer.serializeList(Arrays.asList((Object[]) value));
             set(key, array);

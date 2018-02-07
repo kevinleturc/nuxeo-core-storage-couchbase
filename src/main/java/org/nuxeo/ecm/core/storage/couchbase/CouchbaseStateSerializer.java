@@ -30,7 +30,7 @@ import com.couchbase.client.java.document.json.JsonArray;
 import com.couchbase.client.java.document.json.JsonObject;
 
 /**
- * Couchbase Serializer to convert {@link String} into {@link State}.
+ * Couchbase Serializer to convert {@link State} into {@link JsonObject}.
  *
  * @since 9.1
  */

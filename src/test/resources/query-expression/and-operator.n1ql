@@ -1,0 +1,1 @@
+SELECT `bucket`.* FROM `bucket` WHERE `ecm:name` = name AND `ecm:lockOwner` = bob

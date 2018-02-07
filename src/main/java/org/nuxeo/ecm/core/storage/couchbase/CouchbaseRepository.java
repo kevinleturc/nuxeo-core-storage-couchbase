@@ -33,11 +33,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.resource.spi.ConnectionManager;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.nuxeo.ecm.core.api.Lock;
@@ -50,13 +52,18 @@ import org.nuxeo.ecm.core.storage.State;
 import org.nuxeo.ecm.core.storage.State.StateDiff;
 import org.nuxeo.ecm.core.storage.dbs.DBSExpressionEvaluator;
 import org.nuxeo.ecm.core.storage.dbs.DBSRepositoryBase;
+import org.nuxeo.ecm.core.storage.dbs.DBSStateFlattener;
 
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Cluster;
 import com.couchbase.client.java.CouchbaseCluster;
 import com.couchbase.client.java.document.JsonDocument;
+import com.couchbase.client.java.query.N1qlParams;
 import com.couchbase.client.java.query.N1qlQuery;
+import com.couchbase.client.java.query.N1qlQueryResult;
 import com.couchbase.client.java.query.N1qlQueryRow;
+import com.couchbase.client.java.query.Statement;
+import com.couchbase.client.java.query.consistency.ScanConsistency;
 
 import rx.Observable;
 
@@ -286,7 +293,61 @@ public class CouchbaseRepository extends DBSRepositoryBase {
     @Override
     public PartialList<Map<String, Serializable>> queryAndFetch(DBSExpressionEvaluator evaluator,
             OrderByClause orderByClause, boolean distinctDocuments, int limit, int offset, int countUpTo) {
-        return new PartialList<>(Collections.emptyList(), 0L);
+        CouchbaseQueryBuilder builder = new CouchbaseQueryBuilder(evaluator, orderByClause, distinctDocuments);
+        Statement statement = builder.build(bucket.name());
+        // Don't do manual projection if there are no projection wildcards, as this brings no new
+        // information and is costly. The only difference is several identical rows instead of one.
+        boolean manualProjection = builder.doManualProjection();
+        if (manualProjection) {
+            // we'll do post-treatment to re-evaluate the query to get proper wildcard projections
+            // so we need the full state from the database
+            evaluator.parse();
+        }
+        // TODO limit and offset
+        N1qlQuery query = N1qlQuery.simple(statement, N1qlParams.build().consistency(ScanConsistency.REQUEST_PLUS));
+        if (log.isTraceEnabled()) {
+            logQuery(query);
+        }
+
+        Function<State, Stream<Map<String, Serializable>>> projectionFct = state -> Stream.of(
+                DBSStateFlattener.flatten(state));
+        if (manualProjection) {
+            projectionFct = state -> evaluator.matches(state).stream();
+        }
+        N1qlQueryResult result = bucket.query(query);
+        List<Map<String, Serializable>> projections = result.allRows()
+                                                            .stream()
+                                                            .map(N1qlQueryRow::value)
+                                                            .map(CouchbaseStateDeserializer::deserialize)
+                                                            .flatMap(projectionFct)
+                                                            .collect(Collectors.toList());
+        long totalSize;
+        if (countUpTo == -1) {
+            // count full size
+            if (limit == 0) {
+                totalSize = projections.size();
+            } else {
+                totalSize = result.info().sortCount();
+            }
+        } else if (countUpTo == 0) {
+            // no count
+            totalSize = -1; // not counted
+        } else {
+            // count only if less than countUpTo
+            if (limit == 0) {
+                totalSize = projections.size();
+            } else {
+                totalSize = result.info().sortCount();
+            }
+            if (totalSize > countUpTo) {
+                totalSize = -2; // truncated
+            }
+        }
+
+        if (log.isTraceEnabled() && projections.size() != 0) {
+            log.trace("Couchbase:    -> " + projections.size());
+        }
+        return new PartialList<>(projections, totalSize);
     }
 
     @Override

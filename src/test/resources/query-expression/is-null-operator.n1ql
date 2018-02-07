@@ -1,0 +1,1 @@
+SELECT `bucket`.* FROM `bucket` WHERE `ecm:lockCreated` IS NULL
